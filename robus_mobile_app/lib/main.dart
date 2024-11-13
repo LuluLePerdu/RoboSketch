@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:robus_mobile_app/views/drawing_page.dart';
 import 'package:robus_mobile_app/views/remote_page.dart';
 
+import 'models/bluetooth.dart';
+
 void main() {
   runApp(const AutomatismApp());
 }
@@ -57,6 +59,18 @@ class MainMenu extends StatelessWidget {
               },
               child: const Text('Robot Control Section'),
             ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BluetoothApp(),
+                  ),
+                );
+              },
+              child: const Text('MesengLulu'),
+            )
           ],
         ),
       ),
