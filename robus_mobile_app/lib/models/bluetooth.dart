@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:chat_bubbles/chat_bubbles.dart';
 import 'dart:io';
 
 import '../views/chat_screen.dart';
@@ -22,6 +21,7 @@ class _BluetoothAppState extends State<BluetoothApp> {
   List<Message> buffer = [];
   final TextEditingController controller = TextEditingController();
   String lastSentMessage = "";
+  bool isMessageSending = false;
 
   @override
   void initState() {
@@ -81,6 +81,7 @@ class _BluetoothAppState extends State<BluetoothApp> {
     }
 
     lastSentMessage = text;
+    isMessageSending = true;
 
     List<BluetoothService> services = await selectedDevice!.discoverServices();
     BluetoothService serviceFFE0 = services.firstWhere(
@@ -93,13 +94,17 @@ class _BluetoothAppState extends State<BluetoothApp> {
       orElse: () => throw Exception('Caractéristique FFE1 avec écriture sans réponse non trouvée'),
     );
 
-    List<int> list = utf8.encode(text);
-    Uint8List bytes = Uint8List.fromList(list);
+    // Convertir le message entier en bytes
+    List<int> bytes = utf8.encode(text);
+    Uint8List byteArray = Uint8List.fromList(bytes);
 
+    // Limiter la taille à 20 octets (maximum pour l'envoi sans réponse)
     int chunkSize = 20;
-    for (int i = 0; i < bytes.length; i += chunkSize) {
-      int end = (i + chunkSize < bytes.length) ? i + chunkSize : bytes.length;
-      List<int> chunk = bytes.sublist(i, end);
+
+    // Envoyer les morceaux un par un
+    for (int i = 0; i < byteArray.length; i += chunkSize) {
+      int end = (i + chunkSize < byteArray.length) ? i + chunkSize : byteArray.length;
+      List<int> chunk = byteArray.sublist(i, end);
 
       try {
         await characteristic.write(chunk, withoutResponse: true);
@@ -137,6 +142,13 @@ class _BluetoothAppState extends State<BluetoothApp> {
         await characteristic.setNotifyValue(true);
         characteristic.lastValueStream.listen((value) {
           String receivedText = utf8.decode(value);
+
+          // Vérifier si le message reçu est celui que l'on vient d'envoyer
+          if (isMessageSending) {
+            isMessageSending = false; // Réinitialiser le flag
+            return; // Ne pas ajouter ce message à l'affichage
+          }
+
           setState(() {
             buffer.add(Message(receivedText, 0)); // Indiquer que c'est un message reçu
           });
@@ -148,7 +160,6 @@ class _BluetoothAppState extends State<BluetoothApp> {
       print("Erreur lors de l'écoute des notifications : $e");
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
