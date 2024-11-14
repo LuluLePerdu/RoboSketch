@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
 import '../views/chat_screen.dart';
+import '../views/drawing_page.dart';
 import '../views/scan_page.dart';
 import 'message.dart';
 
@@ -36,13 +37,6 @@ class _BluetoothAppState extends State<BluetoothApp> {
     }
   }
 
-  void toggleBluetooth() {
-    setState(() {
-      bluetoothState = !bluetoothState;
-      bluetoothState ? FlutterBluePlus.turnOn() : FlutterBluePlus.turnOff();
-    });
-  }
-
   Future<void> connectDevice(BluetoothDevice device) async {
     try {
       await device.connect();
@@ -51,6 +45,13 @@ class _BluetoothAppState extends State<BluetoothApp> {
         selectedDevice = device;
       });
       startListening();
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const DrawingPage(),
+        ),
+      );
     } catch (e) {
       print("Connection Error: $e");
     }
@@ -65,7 +66,7 @@ class _BluetoothAppState extends State<BluetoothApp> {
   }
 
   Future<void> startScan() async {
-    FlutterBluePlus.startScan(timeout: Duration(seconds: 4));
+    FlutterBluePlus.startScan(timeout: const Duration(seconds: 4));
   }
 
   Future<void> stopScan() async {
@@ -94,14 +95,11 @@ class _BluetoothAppState extends State<BluetoothApp> {
       orElse: () => throw Exception('Caractéristique FFE1 avec écriture sans réponse non trouvée'),
     );
 
-    // Convertir le message entier en bytes
     List<int> bytes = utf8.encode(text);
     Uint8List byteArray = Uint8List.fromList(bytes);
 
-    // Limiter la taille à 20 octets (maximum pour l'envoi sans réponse)
     int chunkSize = 20;
 
-    // Envoyer les morceaux un par un
     for (int i = 0; i < byteArray.length; i += chunkSize) {
       int end = (i + chunkSize < byteArray.length) ? i + chunkSize : byteArray.length;
       List<int> chunk = byteArray.sublist(i, end);
@@ -115,7 +113,7 @@ class _BluetoothAppState extends State<BluetoothApp> {
     }
 
     setState(() {
-      buffer.add(Message(text, 1));  // 1 pour l'expéditeur
+      buffer.add(Message(text, 1));
       controller.clear();
     });
   }
@@ -143,14 +141,13 @@ class _BluetoothAppState extends State<BluetoothApp> {
         characteristic.lastValueStream.listen((value) {
           String receivedText = utf8.decode(value);
 
-          // Vérifier si le message reçu est celui que l'on vient d'envoyer
           if (isMessageSending) {
-            isMessageSending = false; // Réinitialiser le flag
-            return; // Ne pas ajouter ce message à l'affichage
+            isMessageSending = false;
+            return;
           }
 
           setState(() {
-            buffer.add(Message(receivedText, 0)); // Indiquer que c'est un message reçu
+            buffer.add(Message(receivedText, 0));
           });
         });
       } else {
@@ -165,7 +162,7 @@ class _BluetoothAppState extends State<BluetoothApp> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Bluetooth BLE App"),
+        title: const Text("Bluetooth BLE App"),
         actions: [
           IconButton(
             icon: Icon(connectionStatus ? Icons.link_off : Icons.search),
@@ -175,26 +172,13 @@ class _BluetoothAppState extends State<BluetoothApp> {
       ),
       body: Column(
         children: [
-          StreamBuilder(
-            stream: FlutterBluePlus.adapterState,
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                bluetoothState = (snapshot.data == BluetoothAdapterState.on);
-                return SwitchListTile(
-                  title: Text('Activate Bluetooth'),
-                  value: bluetoothState,
-                  onChanged: (value) => toggleBluetooth(),
-                );
-              }
-              return Container();
-            },
-          ),
           Expanded(
             child: connectionStatus
                 ? ChatScreen(buffer: buffer)
                 : ScanPage(onDeviceSelected: connectDevice),
           ),
           if (connectionStatus)
+            //ICI DRAWING
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(
@@ -202,24 +186,16 @@ class _BluetoothAppState extends State<BluetoothApp> {
                   Expanded(
                     child: TextField(
                       controller: controller,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Écrire un message',
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.send),
+                    icon: const Icon(Icons.send),
                     onPressed: sendMessage,
                   ),
                 ],
-              ),
-            ),
-          if (connectionStatus)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: ElevatedButton(
-                onPressed: disconnectDevice,
-                child: Text('Disconnect'),
               ),
             ),
         ],
