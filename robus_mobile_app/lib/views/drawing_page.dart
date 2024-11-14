@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:robus_mobile_app/views/theme/app_theme.dart';
 
 import '../components/canvas_side_bar.dart';
@@ -13,21 +14,34 @@ import '../models/undo_redo_stack.dart';
 import 'notifiers/current_stroke_value_notifier.dart';
 
 class DrawingPage extends StatefulWidget {
-  const DrawingPage({super.key});
+  final BluetoothDevice? conenctedDevice;
+  const DrawingPage({super.key, this.conenctedDevice});
 
   @override
   State<DrawingPage> createState() => _DrawingPageState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Drawing'),
+      ),
+      body: Center(
+        child: Text(conenctedDevice != null
+            ? 'Connecté à ${conenctedDevice!.platformName}'
+            : 'Aucun appareil connecté'),
+      ),
+    );
+  }
 }
 
-class _DrawingPageState extends State<DrawingPage>
-    with SingleTickerProviderStateMixin {
+class _DrawingPageState extends State<DrawingPage> with SingleTickerProviderStateMixin {
   late final AnimationController animationController;
 
   final ValueNotifier<Color> selectedColor = ValueNotifier(Colors.black);
   final ValueNotifier<double> strokeSize = ValueNotifier(10.0);
   final ValueNotifier<double> eraserSize = ValueNotifier(30.0);
-  final ValueNotifier<DrawingTool> drawingTool =
-      ValueNotifier(DrawingTool.pencil);
+  final ValueNotifier<DrawingTool> drawingTool = ValueNotifier(DrawingTool.pencil);
   final GlobalKey canvasGlobalKey = GlobalKey();
   final ValueNotifier<bool> filled = ValueNotifier(false);
   final ValueNotifier<int> polygonSides = ValueNotifier(3);
@@ -37,6 +51,9 @@ class _DrawingPageState extends State<DrawingPage>
   late final UndoRedoStack undoRedoStack;
   final ValueNotifier<bool> showGrid = ValueNotifier(false);
 
+  BluetoothDevice? device;
+  BluetoothCharacteristic? characteristic;
+
   @override
   void initState() {
     super.initState();
@@ -44,11 +61,51 @@ class _DrawingPageState extends State<DrawingPage>
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+    if (widget.conenctedDevice != null) {
+      device = widget.conenctedDevice;
+      _discoverServices();
+    }
 
     undoRedoStack = UndoRedoStack(
       currentStrokeNotifier: currentStroke,
       strokesNotifier: allStrokes,
     );
+  }
+
+  Future<void> _discoverServices() async {
+    final services = await device!.discoverServices();
+    for (final service in services) {
+      for (final characteristic in service.characteristics) {
+        if (characteristic.properties.notify) {
+          await characteristic.setNotifyValue(true);
+          characteristic.lastValueStream.listen((value) {
+            print('Received: $value');
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _sendDrawingData() async {
+    if (characteristic != null) {
+      List<int> drawingData = _serializeStrokes(allStrokes.value);
+      await characteristic!.write(drawingData);
+      print('Drawing data sent');
+    }
+  }
+
+  List<int> _serializeStrokes(List<Stroke> strokes) {
+    List<int> data = [];
+    for (final stroke in strokes) {
+      data.add(stroke.color.value);
+      data.add(stroke.size.toInt());
+      data.add(stroke.points.length);
+      for (final point in stroke.points) {
+        data.add(point.dx.toInt());
+        data.add(point.dy.toInt());
+      }
+    }
+    return data;
   }
 
   @override
@@ -61,16 +118,7 @@ class _DrawingPageState extends State<DrawingPage>
         child: Stack(
           children: [
             AnimatedBuilder(
-              animation: Listenable.merge([
-                currentStroke,
-                allStrokes,
-                selectedColor,
-                strokeSize,
-                eraserSize,
-                drawingTool,
-                polygonSides,
-                showGrid,
-              ]),
+              animation: Listenable.merge([currentStroke, allStrokes, selectedColor, strokeSize, eraserSize, drawingTool, polygonSides, showGrid]),
               builder: (context, _) {
                 return DrawingCanvas(
                   options: DrawingCanvasOptions(
@@ -90,10 +138,7 @@ class _DrawingPageState extends State<DrawingPage>
             Positioned(
               top: kToolbarHeight + 10,
               child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(-1, 0),
-                  end: Offset.zero,
-                ).animate(animationController),
+                position: Tween<Offset>(begin: const Offset(-1, 0), end: Offset.zero).animate(animationController),
                 child: CanvasSideBar(
                   drawingTool: drawingTool,
                   selectedColor: selectedColor,
@@ -112,6 +157,11 @@ class _DrawingPageState extends State<DrawingPage>
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _sendDrawingData,
+        child: Icon(Icons.bluetooth),
+        tooltip: 'Send drawing via Bluetooth',
+      ),
     );
   }
 }
@@ -119,8 +169,7 @@ class _DrawingPageState extends State<DrawingPage>
 class _CustomAppBar extends StatelessWidget {
   final AnimationController animationController;
 
-  const _CustomAppBar({Key? key, required this.animationController})
-      : super(key: key);
+  const _CustomAppBar({Key? key, required this.animationController}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -143,7 +192,7 @@ class _CustomAppBar extends StatelessWidget {
               icon: const Icon(Icons.menu),
             ),
             const Text(
-              'Automatism Project - Drawing',
+              'Drawing',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 19,

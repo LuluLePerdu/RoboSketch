@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:robus_mobile_app/views/drawing_page.dart';
-import 'package:robus_mobile_app/views/remote_page.dart';
+
+import 'models/bluetooth.dart';
 
 void main() {
   runApp(const AutomatismApp());
@@ -12,7 +13,7 @@ class AutomatismApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Automatism Project',
+      title: 'Robus Project',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
@@ -28,7 +29,7 @@ class MainMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Automatism Project'),
+        title: const Text('Robus'),
       ),
       body: Center(
         child: Column(
@@ -51,12 +52,12 @@ class MainMenu extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const RobotControlPage(),
+                    builder: (context) => BluetoothApp(),
                   ),
                 );
               },
-              child: const Text('Robot Control Section'),
-            ),
+              child: const Text('MesengLulu'),
+            )
           ],
         ),
       ),
