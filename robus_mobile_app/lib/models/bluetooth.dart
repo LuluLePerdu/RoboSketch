@@ -31,7 +31,7 @@ class _BluetoothAppState extends State<BluetoothApp> {
   }
 
   Future<void> getPermissions() async {
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (Platform.isAndroid) {
       await Permission.bluetooth.request();
       await Permission.bluetoothConnect.request();
     }
@@ -49,7 +49,7 @@ class _BluetoothAppState extends State<BluetoothApp> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => const DrawingPage(),
+          builder: (context) => DrawingPage(conenctedDevice: selectedDevice),
         ),
       );
     } catch (e) {
@@ -174,7 +174,7 @@ class _BluetoothAppState extends State<BluetoothApp> {
         children: [
           Expanded(
             child: connectionStatus
-                ? ChatScreen(buffer: buffer)
+                ? DrawingPage(conenctedDevice: selectedDevice)
                 : ScanPage(onDeviceSelected: connectDevice),
           ),
           if (connectionStatus)
