@@ -33,15 +33,10 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   final _showGrid = ValueNotifier<bool>(false);
 
   Color get strokeColor => widget.options.strokeColor;
-
   double get size => widget.options.size;
-
   double get opacity => widget.options.opacity;
-
   DrawingTool get currentTool => widget.options.currentTool;
-
   ValueNotifier<List<Stroke>> get _strokes => widget.strokesListenable;
-
   CurrentStrokeValueNotifier get _currentStroke =>
       widget.currentStrokeListenable;
 
@@ -49,8 +44,6 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
     final box = context.findRenderObject() as RenderBox?;
     if (box == null) return;
     final offset = box.globalToLocal(event.position);
-    // convert the offset to standard size so that it
-    // can be scaled back to the device size
     final standardOffset = offset.scaleToStandard(box.size);
     _currentStroke.startStroke(
       standardOffset,
@@ -67,8 +60,6 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
     final box = context.findRenderObject() as RenderBox?;
     if (box == null) return;
     final offset = box.globalToLocal(event.position);
-    // convert the offset to standard size so that it
-    // can be scaled back to the device size
     final standardOffset = offset.scaleToStandard(box.size);
     _currentStroke.addPoint(standardOffset);
     widget.onDrawingStrokeChanged?.call(_currentStroke.value);
@@ -106,7 +97,6 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               ),
             ),
 
-            // Draw the current stroke on top of the rest of the strokes.
             Positioned.fill(
               child: RepaintBoundary(
                 child: CustomPaint(
@@ -167,7 +157,6 @@ class _DrawingCanvasPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round
         ..style = PaintingStyle.stroke;
 
-      // Pencil stroke
       if (stroke is NormalStroke) {
         final path = _getStrokePath(stroke, size);
 
@@ -185,16 +174,13 @@ class _DrawingCanvasPainter extends CustomPainter {
         continue;
       }
 
-      // Eraser stroke. The eraser stroke is drawn with the background color.
       if (stroke is EraserStroke) {
         final path = _getStrokePath(stroke, size);
         canvas.drawPath(path, paint..color = backgroundColor);
         continue;
       }
 
-      // Line stroke.
       if (stroke is LineStroke) {
-        // scale the points to the standard size
         final firstPoint = points.first.scaleFromStandard(size);
         final lastPoint = points.last.scaleFromStandard(size);
         canvas.drawLine(firstPoint, lastPoint, paint);
@@ -202,7 +188,6 @@ class _DrawingCanvasPainter extends CustomPainter {
       }
 
       if (stroke is CircleStroke) {
-        // scale the points to the standard size
         final firstPoint = points.first.scaleFromStandard(size);
         final lastPoint = points.last.scaleFromStandard(size);
         final rect = Rect.fromPoints(firstPoint, lastPoint);
@@ -216,7 +201,6 @@ class _DrawingCanvasPainter extends CustomPainter {
       }
 
       if (stroke is SquareStroke) {
-        // scale the points to the standard size
         final firstPoint = points.first.scaleFromStandard(size);
         final lastPoint = points.last.scaleFromStandard(size);
         final rect = Rect.fromPoints(firstPoint, lastPoint);
@@ -230,7 +214,6 @@ class _DrawingCanvasPainter extends CustomPainter {
       }
 
       if (stroke is PolygonStroke) {
-        // scale the points to the standard size
         final firstPoint = points.first.scaleFromStandard(size);
         final lastPoint = points.last.scaleFromStandard(size);
         final centerPoint = (firstPoint / 2) + (lastPoint / 2);
@@ -262,7 +245,6 @@ class _DrawingCanvasPainter extends CustomPainter {
       }
     }
 
-    // Draw the grid last so it's on top of everything else.
     if (showGridListenable?.value ?? false) {
       _drawGrid(size, canvas);
     }
@@ -271,28 +253,25 @@ class _DrawingCanvasPainter extends CustomPainter {
   void _drawGrid(Size size, Canvas canvas) {
     const gridStrokeWidth = 1.0;
     const gridSpacing = 50.0;
-    const subGridSpacing = 10.0; // Spacing for smaller boxes
-    const subGridStrokeWidth = 0.5; // Lighter stroke for smaller boxes
+    const subGridSpacing = 10.0;
+    const subGridStrokeWidth = 0.5;
 
     final gridPaint = Paint()
       ..color = Colors.black
       ..strokeWidth = gridStrokeWidth;
 
     final subGridPaint = Paint()
-      ..color = Colors.grey // Lighter color for the smaller grid
+      ..color = Colors.grey
       ..strokeWidth = subGridStrokeWidth;
 
-    // Horizontal lines for main grid
     for (double y = 0; y <= size.height; y += gridSpacing) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
     }
 
-    // Vertical lines for main grid
     for (double x = 0; x <= size.width; x += gridSpacing) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
     }
 
-    // Draw smaller boxes within each grid cell
     for (double y = 0; y <= size.height; y += gridSpacing) {
       for (double subY = y;
           subY < y + gridSpacing && subY <= size.height;
@@ -322,15 +301,12 @@ class _DrawingCanvasPainter extends CustomPainter {
     final path = Path();
     final points = stroke.points;
     if (points.isNotEmpty) {
-      // scale the point to the standard size
       final firstPoint = points.first.scaleFromStandard(size);
       path.moveTo(firstPoint.dx, firstPoint.dy);
       for (int i = 1; i < points.length - 1; ++i) {
-        // scale the points to the standard size
         final p0 = points[i].scaleFromStandard(size);
         final p1 = points[i + 1].scaleFromStandard(size);
 
-        // use quadratic bezier to draw smooth curves through the points
         path.quadraticBezierTo(
           p0.dx,
           p0.dy,
