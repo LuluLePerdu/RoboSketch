@@ -9,15 +9,11 @@ import 'package:flutter/material.dart' hide Image;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:universal_html/html.dart' as html;
-import 'package:url_launcher/url_launcher.dart';
 
 import '../models/drawing_tool.dart';
 import '../models/stroke.dart';
 import '../models/undo_redo_stack.dart';
 import '../views/notifiers/current_stroke_value_notifier.dart';
-import 'color_palette.dart';
 
 class CanvasSideBar extends StatefulWidget {
   final ValueNotifier<Color> selectedColor;
@@ -32,7 +28,7 @@ class CanvasSideBar extends StatefulWidget {
   final ValueNotifier<bool> showGrid;
 
   const CanvasSideBar({
-    Key? key,
+    super.key,
     required this.selectedColor,
     required this.strokeSize,
     required this.eraserSize,
@@ -43,7 +39,7 @@ class CanvasSideBar extends StatefulWidget {
     required this.polygonSides,
     required this.undoRedoStack,
     required this.showGrid,
-  }) : super(key: key);
+  });
 
   @override
   State<CanvasSideBar> createState() => _CanvasSideBarState();
@@ -189,15 +185,7 @@ class _CanvasSideBarState extends State<CanvasSideBar> {
                   'Colors',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                const Divider(),
-                ColorPalette(
-                  selectedColorListenable: widget.selectedColor,
-                ),
                 const SizedBox(height: 20),
-                const Text(
-                  'Size',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
                 const Divider(),
                 Row(
                   children: [

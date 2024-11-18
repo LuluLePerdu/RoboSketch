@@ -35,7 +35,6 @@ class ScanPage extends StatelessWidget {
                 ),
               );
             } else {
-              // Si le périphérique n'a pas de nom valide, ne rien afficher
               return Container();
             }
           }).toList(),
