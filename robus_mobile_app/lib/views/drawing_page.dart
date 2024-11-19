@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -9,30 +11,18 @@ import '../components/drawing_canvas.dart';
 import '../components/hot_key_listener.dart';
 import '../models/drawing_canvas_options.dart';
 import '../models/drawing_tool.dart';
+import '../models/message.dart';
 import '../models/stroke.dart';
 import '../models/undo_redo_stack.dart';
 import 'notifiers/current_stroke_value_notifier.dart';
 
 class DrawingPage extends StatefulWidget {
-  final BluetoothDevice? conenctedDevice;
-  const DrawingPage({super.key, this.conenctedDevice});
+  final BluetoothDevice? connectedDevice;
+
+  const DrawingPage({super.key, required this.connectedDevice});
 
   @override
   State<DrawingPage> createState() => _DrawingPageState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Drawing'),
-      ),
-      body: Center(
-        child: Text(conenctedDevice != null
-            ? 'Connecté à ${conenctedDevice!.platformName}'
-            : 'Aucun appareil connecté'),
-      ),
-    );
-  }
 }
 
 class _DrawingPageState extends State<DrawingPage> with SingleTickerProviderStateMixin {
@@ -54,6 +44,9 @@ class _DrawingPageState extends State<DrawingPage> with SingleTickerProviderStat
   BluetoothDevice? device;
   BluetoothCharacteristic? characteristic;
 
+  List<Message> buffer = [];
+  final TextEditingController controller = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -61,8 +54,9 @@ class _DrawingPageState extends State<DrawingPage> with SingleTickerProviderStat
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    if (widget.conenctedDevice != null) {
-      device = widget.conenctedDevice;
+
+    if (widget.connectedDevice != null) {
+      device = widget.connectedDevice;
       _discoverServices();
     }
 
@@ -86,32 +80,101 @@ class _DrawingPageState extends State<DrawingPage> with SingleTickerProviderStat
     }
   }
 
-  Future<void> _sendDrawingData() async {
-    if (characteristic != null) {
-      List<int> drawingData = _serializeStrokes(allStrokes.value);
-      await characteristic!.write(drawingData);
-      print('Drawing data sent');
+  Future<void> sendDrawingData(List<Stroke> strokes) async {
+    if (device == null) return;
+
+    String drawingData = _serializeStrokesToString(strokes);
+
+    try {
+      List<BluetoothService> services = await device!.discoverServices();
+      BluetoothService serviceFFE0 = services.firstWhere(
+            (service) => service.uuid.toString().toUpperCase() == 'FFE0',
+        orElse: () => throw Exception('Service FFE0 non trouvé'),
+      );
+
+      BluetoothCharacteristic characteristic = serviceFFE0.characteristics.firstWhere(
+            (char) => char.uuid.toString().toUpperCase() == 'FFE1' &&
+            char.properties.writeWithoutResponse,
+        orElse: () => throw Exception('Caractéristique FFE1 avec écriture sans réponse non trouvée'),
+      );
+
+      List<int> bytes = utf8.encode(drawingData);
+      Uint8List byteArray = Uint8List.fromList(bytes);
+
+      int chunkSize = 20;
+
+      for (int i = 0; i < byteArray.length; i += chunkSize) {
+        int end = (i + chunkSize < byteArray.length) ? i + chunkSize : byteArray.length;
+        List<int> chunk = byteArray.sublist(i, end);
+
+        try {
+          await characteristic.write(chunk, withoutResponse: true);
+          print("Morceau envoyé : ${utf8.decode(chunk)}");
+        } catch (e) {
+          print("Erreur d'envoi du morceau : $e");
+        }
+      }
+
+      setState(() {
+        buffer.add(Message(drawingData, 1));
+        controller.clear();
+      });
+    } catch (e) {
+      print("Erreur lors de la découverte des services ou de l'envoi : $e");
     }
   }
 
-  List<int> _serializeStrokes(List<Stroke> strokes) {
-    List<int> data = [];
+  String _serializeStrokesToString(List<Stroke> strokes) {
+    StringBuffer data = StringBuffer();
     for (final stroke in strokes) {
-      data.add(stroke.color.value);
-      data.add(stroke.size.toInt());
-      data.add(stroke.points.length);
-      for (final point in stroke.points) {
-        data.add(point.dx.toInt());
-        data.add(point.dy.toInt());
+      if (stroke is SquareStroke) {
+        data.write('Square: (${stroke.points.first.dx} | ${stroke.points.first.dy}),(${stroke.points.last.dx} | ${stroke.points.last.dy}) | ${stroke.points.length}; ');
+      } else if (stroke is LineStroke) {
+        data.write('Line: (${stroke.points.first.dx} | ${stroke.points.first.dy}),(${stroke.points.last.dx} | ${stroke.points.last.dy}) | ${stroke.points.length}; ');
+      } else if (stroke is CircleStroke) {
+        data.write('Circle: ${stroke.points.first.dx} | ${stroke.points.first.dy} | ${stroke.points.length}; ');
+      } else if (stroke is PolygonStroke) {
+        data.write('Polygon: ${stroke.sides} | ');
+        for (final point in stroke.points) {
+          data.write('(${point.dx} | ${point.dy}), ');
+        }
+        data.write('| ${stroke.points.length}; ');
+      } else {
+        data.write('Normal: ');
+        for (final point in stroke.points) {
+          data.write('(${point.dx} | ${point.dy}), ');
+        }
+        data.write('| ${stroke.points.length}; ');
       }
+
     }
-    return data;
+    return data.toString();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kCanvasColor,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text(widget.connectedDevice != null
+            ? 'Connecté à ${widget.connectedDevice!.platformName}'
+            : 'Aucun appareil connecté'
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.send),
+            tooltip: 'Envoyer les données via Bluetooth',
+            onPressed: () async {
+              if (allStrokes.value.isEmpty) {
+                print("Aucun dessin à envoyer");
+              } else {
+                await sendDrawingData(allStrokes.value);
+              }
+            },
+          ),
+        ],
+      ),
       body: HotkeyListener(
         onRedo: undoRedoStack.redo,
         onUndo: undoRedoStack.undo,
@@ -136,7 +199,7 @@ class _DrawingPageState extends State<DrawingPage> with SingleTickerProviderStat
               },
             ),
             Positioned(
-              top: kToolbarHeight + 10,
+              top: kToolbarHeight + 50,
               child: SlideTransition(
                 position: Tween<Offset>(begin: const Offset(-1, 0), end: Offset.zero).animate(animationController),
                 child: CanvasSideBar(
@@ -157,19 +220,13 @@ class _DrawingPageState extends State<DrawingPage> with SingleTickerProviderStat
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _sendDrawingData,
-        child: Icon(Icons.bluetooth),
-        tooltip: 'Send drawing via Bluetooth',
-      ),
     );
   }
 }
-
 class _CustomAppBar extends StatelessWidget {
   final AnimationController animationController;
 
-  const _CustomAppBar({Key? key, required this.animationController}) : super(key: key);
+  const _CustomAppBar({super.key, required this.animationController});
 
   @override
   Widget build(BuildContext context) {
@@ -192,7 +249,7 @@ class _CustomAppBar extends StatelessWidget {
               icon: const Icon(Icons.menu),
             ),
             const Text(
-              'Drawing',
+              'Paint étudiant',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 19,

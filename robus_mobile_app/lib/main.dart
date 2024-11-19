@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:robus_mobile_app/models/bluetooth.dart';
 import 'package:robus_mobile_app/views/drawing_page.dart';
-
-import 'models/bluetooth.dart';
 
 void main() {
   runApp(const AutomatismApp());
 }
 
 class AutomatismApp extends StatelessWidget {
-  const AutomatismApp({Key? key}) : super(key: key);
+  const AutomatismApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Robus Project',
+      title: 'Pirus Project',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
@@ -23,13 +22,13 @@ class AutomatismApp extends StatelessWidget {
 }
 
 class MainMenu extends StatelessWidget {
-  const MainMenu({Key? key}) : super(key: key);
+  const MainMenu({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Robus'),
+        title: const Text('Pirus'),
       ),
       body: Center(
         child: Column(
@@ -40,11 +39,11 @@ class MainMenu extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const DrawingPage(),
+                    builder: (context) => const DrawingPage(connectedDevice: null,),
                   ),
                 );
               },
-              child: const Text('Drawing Section'),
+              child: const Text('Test Dessin'),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
@@ -56,8 +55,8 @@ class MainMenu extends StatelessWidget {
                   ),
                 );
               },
-              child: const Text('MesengLulu'),
-            )
+              child: const Text('Pirus'),
+            ),
           ],
         ),
       ),

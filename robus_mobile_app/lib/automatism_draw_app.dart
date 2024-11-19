@@ -12,7 +12,7 @@ class AutomatismApp extends StatelessWidget {
     return MaterialApp(
       title: "Special drawing app for special people",
       theme: lightTheme,
-      home: const DrawingPage(),
+      home: const DrawingPage(connectedDevice: null,),
     );
   }
 }

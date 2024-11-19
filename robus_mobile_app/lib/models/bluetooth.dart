@@ -5,7 +5,6 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 
-import '../views/chat_screen.dart';
 import '../views/drawing_page.dart';
 import '../views/scan_page.dart';
 import 'message.dart';
@@ -45,13 +44,6 @@ class _BluetoothAppState extends State<BluetoothApp> {
         selectedDevice = device;
       });
       startListening();
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DrawingPage(conenctedDevice: selectedDevice),
-        ),
-      );
     } catch (e) {
       print("Connection Error: $e");
     }
@@ -90,9 +82,14 @@ class _BluetoothAppState extends State<BluetoothApp> {
       orElse: () => throw Exception('Service FFE0 non trouvé'),
     );
 
-    BluetoothCharacteristic characteristic = serviceFFE0.characteristics.firstWhere(
-          (char) => char.uuid.toString().toUpperCase() == 'FFE1' && char.properties.writeWithoutResponse,
-      orElse: () => throw Exception('Caractéristique FFE1 avec écriture sans réponse non trouvée'),
+    BluetoothCharacteristic characteristic = serviceFFE0.characteristics
+        .firstWhere(
+          (char) =>
+      char.uuid.toString().toUpperCase() == 'FFE1' &&
+          char.properties.writeWithoutResponse,
+      orElse: () =>
+      throw Exception(
+          'Caractéristique FFE1 avec écriture sans réponse non trouvée'),
     );
 
     List<int> bytes = utf8.encode(text);
@@ -101,7 +98,8 @@ class _BluetoothAppState extends State<BluetoothApp> {
     int chunkSize = 20;
 
     for (int i = 0; i < byteArray.length; i += chunkSize) {
-      int end = (i + chunkSize < byteArray.length) ? i + chunkSize : byteArray.length;
+      int end = (i + chunkSize < byteArray.length) ? i + chunkSize : byteArray
+          .length;
       List<int> chunk = byteArray.sublist(i, end);
 
       try {
@@ -122,7 +120,8 @@ class _BluetoothAppState extends State<BluetoothApp> {
     if (selectedDevice == null) return;
 
     try {
-      List<BluetoothService> services = await selectedDevice!.discoverServices();
+      List<BluetoothService> services = await selectedDevice!
+          .discoverServices();
       BluetoothService? lastService;
       BluetoothCharacteristic? characteristic;
 
@@ -148,6 +147,7 @@ class _BluetoothAppState extends State<BluetoothApp> {
 
           setState(() {
             buffer.add(Message(receivedText, 0));
+            print("Received: $receivedText");
           });
         });
       } else {
@@ -162,7 +162,7 @@ class _BluetoothAppState extends State<BluetoothApp> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Bluetooth BLE App"),
+        title: const Text("App mobile PIRUS"),
         actions: [
           IconButton(
             icon: Icon(connectionStatus ? Icons.link_off : Icons.search),
@@ -174,30 +174,9 @@ class _BluetoothAppState extends State<BluetoothApp> {
         children: [
           Expanded(
             child: connectionStatus
-                ? DrawingPage(conenctedDevice: selectedDevice)
+                ? DrawingPage(connectedDevice: selectedDevice)
                 : ScanPage(onDeviceSelected: connectDevice),
           ),
-          if (connectionStatus)
-            //ICI DRAWING
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: controller,
-                      decoration: const InputDecoration(
-                        labelText: 'Écrire un message',
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.send),
-                    onPressed: sendMessage,
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );

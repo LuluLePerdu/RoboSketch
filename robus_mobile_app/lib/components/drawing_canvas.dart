@@ -1,5 +1,4 @@
 import 'dart:math';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:robus_mobile_app/extensions/extensions.dart';
@@ -160,9 +159,7 @@ class _DrawingCanvasPainter extends CustomPainter {
       if (stroke is NormalStroke) {
         final path = _getStrokePath(stroke, size);
 
-        // If the path only has one line, draw a dot.
         if (stroke.points.length == 1) {
-          // scale the point to the standard size
           final center = stroke.points.first.scaleFromStandard(size);
           final radius = strokeSize / 2;
           canvas.drawCircle(center, radius, paint..style = PaintingStyle.fill);

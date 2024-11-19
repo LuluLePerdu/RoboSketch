@@ -1,13 +1,4 @@
-import 'dart:async';
-import 'dart:io';
-import 'dart:ui' as ui;
-
-import 'package:file_picker/file_picker.dart';
-import 'package:file_saver/file_saver.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Image;
-import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import '../models/drawing_tool.dart';
@@ -266,14 +257,13 @@ class _IconBox extends StatelessWidget {
   final String? tooltip;
 
   const _IconBox({
-    Key? key,
+    super.key,
     this.iconData,
     this.child,
     this.tooltip,
     required this.selected,
     required this.onTap,
-  })  : assert(child != null || iconData != null),
-        super(key: key);
+  })  : assert(child != null || iconData != null);
 
   @override
   Widget build(BuildContext context) {
